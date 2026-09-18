@@ -13,13 +13,14 @@ template syntax ESLint can parse:
 | Astro | `astro-eslint-parser` | `.astro` components |
 | Vue | `vue-eslint-parser` | SFC templates |
 | Svelte | `svelte-eslint-parser` | `.svelte` components |
+| HTML | `@html-eslint/parser` | `.html` files, and server templates through its `templateEngineSyntax` (Handlebars, Twig, Nunjucks, ERB) |
 
 Security plugins mostly look at JavaScript — `element.innerHTML = x`,
 `postMessage(x, '*')`. The same sinks written in a template (`v-html`,
 `set:html`, `{@html}`, `:href`, `target="_blank"`) are a different AST in every
 framework, and each framework plugin covers a different subset of them, if any.
 This plugin reads them all through one adapter, so a rule behaves the same in a
-`.vue`, `.svelte`, `.astro` and `.tsx` file.
+`.vue`, `.svelte`, `.astro`, `.html` and `.tsx` file.
 
 It pairs with JavaScript-level plugins such as
 [`eslint-plugin-no-unsanitized`](https://github.com/mozilla/eslint-plugin-no-unsanitized)
@@ -32,7 +33,22 @@ npm i -D eslint-plugin-template-security
 ```
 
 ESLint 9+, flat config. The plugin brings no parser; it uses whichever one your
-config already sets for each file type.
+config already sets for each file type. For plain HTML, for example:
+
+```js
+import htmlParser from '@html-eslint/parser'
+import templateSecurity from 'eslint-plugin-template-security'
+
+export default [
+  templateSecurity.configs.recommended,
+  {files: ['**/*.html'], languageOptions: {parser: htmlParser}},
+]
+```
+
+In HTML files the rules check what is written in the markup: URLs, `target`,
+`sandbox`, `integrity`. Inline `<script>` content is not parsed as JavaScript
+there, so `window-open-noopener` does not run on it. With a template engine
+configured, a `{{ … }}` part of a value is treated like a bound expression.
 
 ## Usage
 
@@ -135,7 +151,10 @@ Reports `javascript:` URLs in `href`, `src`, `action`, `formaction`,
 `xlink:href`, `poster`, `data` and `cite`, whether written as a string, a bound
 literal, or the known prefix of a template string, concatenation or
 conditional. Leading whitespace and tabs or newlines inside the scheme are
-normalized the way browsers do.
+normalized the way browsers do. So are character references in HTML and in
+static Astro attributes (`javascript&colon;`, `&#106;avascript:`), which the
+browser decodes before reading the URL. JSX string attributes are not decoded:
+React sets them on the DOM unchanged.
 
 ```jsx
 // ✗
@@ -396,8 +415,9 @@ choose between the handle and the isolation.
 
 ## Limitations
 
-- Angular templates and plain `.html` files are not covered yet — the adapter
-  layer is built for them to be added.
+- Angular templates are not covered. Angular sanitizes `[innerHTML]` and
+  `javascript:` URLs itself, and its bypasses (`bypassSecurityTrustHtml()`)
+  are TypeScript calls rather than template syntax.
 - Bindings into `<style>` are not checked. Generated CSS is common and rarely
   carries user input, so reporting every one of them would mostly be noise.
 - Values are resolved within the attribute only; a URL built in a variable

@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-sandbox-escape.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const escape = origin => ({messageId: 'sandboxEscape', data: {origin}})
 const SAME = 'loading this page\'s origin'
@@ -68,6 +68,17 @@ svelte.run('no-sandbox-escape (svelte)', rule, {
   ],
   invalid: [
     {name: 'shorthand srcdoc', code: `<iframe {srcdoc} sandbox="${ BOTH }"></iframe>`, errors: [escape(SRCDOC)]},
+    {name: 'relative src', code: `<iframe src="/widget" sandbox="${ BOTH }"></iframe>`, errors: [escape(SAME)]},
+  ],
+})
+
+html.run('no-sandbox-escape (html)', rule, {
+  valid: [
+    {name: 'cross-origin', code: `<iframe src="https://example.com" sandbox="${ BOTH }"></iframe>`},
+    {name: 'scripts only', code: '<iframe srcdoc="<p>x</p>" sandbox="allow-scripts"></iframe>'},
+  ],
+  invalid: [
+    {name: 'srcdoc', code: `<iframe srcdoc="<p>x</p>" sandbox="${ BOTH }"></iframe>`, errors: [escape(SRCDOC)]},
     {name: 'relative src', code: `<iframe src="/widget" sandbox="${ BOTH }"></iframe>`, errors: [escape(SAME)]},
   ],
 })

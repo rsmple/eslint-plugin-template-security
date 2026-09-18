@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-html-with-children.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const withChildren = sink => ({messageId: 'htmlWithChildren', data: {sink}})
 
@@ -27,6 +27,7 @@ vue.run('no-html-with-children (vue)', rule, {
   valid: [
     {name: 'self-closing', code: vueFile('<div v-html="html" />')},
     {name: 'whitespace and comments', code: vueFile('<div v-html="html">\n  <!-- rendered from markdown -->\n</div>')},
+    {name: 'static innerHTML attribute is inert', code: vueFile('<div innerHTML="x">child</div>')},
   ],
   invalid: [
     {name: 'v-html with text', code: vueFile('<div v-html="html">Loading…</div>'), errors: [withChildren('v-html')]},
@@ -56,4 +57,11 @@ svelte.run('no-html-with-children (svelte)', rule, {
     {name: 'bind:innerHTML with children', code: '<div contenteditable bind:innerHTML={html}>Type here</div>', errors: [withChildren('innerHTML')]},
     {name: 'bind:innerHTML with a block', code: '<div contenteditable bind:innerHTML={html}>{#if loading}…{/if}</div>', errors: [withChildren('innerHTML')]},
   ],
+})
+
+html.run('no-html-with-children (html)', rule, {
+  valid: [
+    {name: 'static attributes are inert', code: '<div innerHTML="x">child</div>'},
+  ],
+  invalid: [],
 })

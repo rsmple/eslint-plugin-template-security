@@ -1,4 +1,5 @@
 import {RuleTester} from 'eslint'
+import htmlParser from '@html-eslint/parser'
 import * as astroParser from 'astro-eslint-parser'
 import * as svelteParser from 'svelte-eslint-parser'
 import * as vueParser from 'vue-eslint-parser'
@@ -21,6 +22,14 @@ export const astro = new RuleTester({
 
 export const svelte = new RuleTester({
   languageOptions: {parser: svelteParser},
+})
+
+export const html = new RuleTester({
+  languageOptions: {parser: htmlParser},
+})
+
+export const handlebars = new RuleTester({
+  languageOptions: {parser: htmlParser, parserOptions: {templateEngineSyntax: htmlParser.TEMPLATE_ENGINE_SYNTAX.HANDLEBAR}},
 })
 
 export const vueFile = (template, script = '') => `<template>${ template }</template>\n<script>${ script }</script>\n`

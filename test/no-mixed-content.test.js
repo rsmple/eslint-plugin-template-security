@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-mixed-content.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, handlebars, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const insecure = (element, attribute) => ({messageId: 'insecure', data: {element, attribute}})
 
@@ -81,5 +81,26 @@ svelte.run('no-mixed-content (svelte)', rule, {
   invalid: [
     invalid('script in svelte:head', '<svelte:head><script src="http://x.com/a.js"></script></svelte:head>', 'script', 'src'),
     invalid('interpolated form action', '<form action="http://{host}/submit"></form>', 'form', 'action'),
+  ],
+})
+
+html.run('no-mixed-content (html)', rule, {
+  valid: [
+    {name: 'https', code: '<script src="https://x.com/a.js"></script>'},
+    {name: 'image', code: '<img src="http://x.com/a.png">'},
+  ],
+  invalid: [
+    invalid('script', '<script src="http://x.com/a.js"></script>', 'script', 'src'),
+    invalid('stylesheet', '<link rel="stylesheet" href="http://x.com/a.css">', 'link', 'href'),
+    invalid('uppercase form', '<FORM ACTION="http://x.com/submit"></FORM>', 'form', 'ACTION'),
+  ],
+})
+
+handlebars.run('no-mixed-content (handlebars)', rule, {
+  valid: [
+    {name: 'scheme from the template', code: '<script src="{{ cdn }}/a.js"></script>'},
+  ],
+  invalid: [
+    invalid('http before a template', '<script src="http://{{ host }}/a.js"></script>', 'script', 'src'),
   ],
 })

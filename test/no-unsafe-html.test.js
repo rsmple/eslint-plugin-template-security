@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-unsafe-html.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const unsafe = sink => ({messageId: 'unsafeHtml', data: {sink, sanitizers: '`DOMPurify.sanitize()`, `sanitizeHtml()`'}})
 const srcdoc = {messageId: 'unsafeSrcdoc', data: {sanitizers: '`DOMPurify.sanitize()`, `sanitizeHtml()`'}}
@@ -97,4 +97,12 @@ svelte.run('no-unsafe-html (svelte)', rule, {
     {name: 'shorthand srcdoc', code: '<iframe {srcdoc}></iframe>', errors: [srcdoc]},
     {name: 'opening tag attribute is HTML', code: '{@html `<script nonce="${ nonce }">init()</script>`}', errors: [unsafe('{@html}')]},
   ],
+})
+
+html.run('no-unsafe-html (html)', rule, {
+  valid: [
+    {name: 'static srcdoc is constant', code: '<iframe srcdoc="<p>hi</p>"></iframe>'},
+    {name: 'innerHTML attribute is inert', code: '<div innerHTML="<b>x</b>"></div>'},
+  ],
+  invalid: [],
 })

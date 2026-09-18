@@ -1,5 +1,5 @@
 import rule from '../lib/rules/link-noopener.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const missingRel = (rel = 'noopener') => ({messageId: 'missingRel', data: {rel}})
 const incompleteRel = (missing = 'noopener') => ({messageId: 'incompleteRel', data: {missing}})
@@ -169,6 +169,34 @@ svelte.run('link-noopener (svelte)', rule, {
       code: '<a href="https://x.com" target="_blank" rel="me">x</a>',
       output: '<a href="https://x.com" target="_blank" rel="me noopener">x</a>',
       errors: [incompleteRel()],
+    },
+  ],
+})
+
+html.run('link-noopener (html)', rule, {
+  valid: [
+    {name: 'noopener', code: '<a href="https://x.com" target="_blank" rel="noopener">x</a>'},
+    {name: 'uppercase attribute names', code: '<A HREF="https://x.com" TARGET="_blank" REL="noreferrer">x</A>'},
+    {name: 'same-origin', code: '<a href="/docs" target="_blank">x</a>'},
+  ],
+  invalid: [
+    {
+      name: 'missing rel',
+      code: '<a href="https://x.com" target="_blank">x</a>',
+      output: '<a href="https://x.com" target="_blank" rel="noopener">x</a>',
+      errors: [missingRel()],
+    },
+    {
+      name: 'unquoted target',
+      code: '<a href="https://x.com" target=docs>x</a>',
+      output: '<a href="https://x.com" target=docs rel="noopener">x</a>',
+      errors: [missingRel()],
+    },
+    {
+      name: 'area',
+      code: '<map><area href="https://x.com" target="_blank"></map>',
+      output: '<map><area href="https://x.com" target="_blank" rel="noopener"></map>',
+      errors: [missingRel()],
     },
   ],
 })

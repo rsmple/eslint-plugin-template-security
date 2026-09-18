@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-javascript-url.js'
-import {astro, jsx, svelte, vue, vueFile} from './testers.js'
+import {astro, handlebars, html, jsx, svelte, vue, vueFile} from './testers.js'
 
 const jsUrl = attribute => ({messageId: 'javascriptUrl', data: {attribute}})
 
@@ -59,4 +59,45 @@ svelte.run('no-javascript-url (svelte)', rule, {
     {name: 'interpolated head', code: '<a href="javascript:{code}">x</a>', errors: [jsUrl('href')]},
     {name: 'bound literal', code: '<iframe src={\'javascript:alert(1)\'} />', errors: [jsUrl('src')]},
   ],
+})
+
+html.run('no-javascript-url (html)', rule, {
+  valid: [
+    {name: 'relative', code: '<a href="/x">x</a>'},
+    {name: 'unknown named reference is not decoded', code: '<a href="javascript&foo;alert(1)">x</a>'},
+  ],
+  invalid: [
+    {name: 'static', code: '<a href="javascript:void(0)">x</a>', errors: [jsUrl('href')]},
+    {name: 'uppercase', code: '<A HREF="JavaScript:alert(1)">x</A>', errors: [jsUrl('HREF')]},
+    {name: 'named reference', code: '<a href="javascript&colon;alert(1)">x</a>', errors: [jsUrl('href')]},
+    {name: 'decimal reference without semicolon', code: '<a href="javascript&#58alert(1)">x</a>', errors: [jsUrl('href')]},
+    {name: 'hex reference', code: '<a href="&#x6A;avascript:alert(1)">x</a>', errors: [jsUrl('href')]},
+    {name: 'encoded tab inside the scheme', code: '<a href="java&Tab;script:alert(1)">x</a>', errors: [jsUrl('href')]},
+    {name: 'iframe src', code: '<iframe src="javascript:alert(1)"></iframe>', errors: [jsUrl('src')]},
+  ],
+})
+
+handlebars.run('no-javascript-url (handlebars)', rule, {
+  valid: [
+    {name: 'template-filled URL', code: '<a href="{{ url }}">x</a>'},
+  ],
+  invalid: [
+    {name: 'javascript: before a template', code: '<a href="javascript:{{ code }}">x</a>', errors: [jsUrl('href')]},
+  ],
+})
+
+astro.run('no-javascript-url (astro, character references)', rule, {
+  valid: [
+    {name: 'bound string is escaped by Astro', code: '<a href={"javascript&colon;alert(1)"}>x</a>'},
+  ],
+  invalid: [
+    {name: 'named reference in a static value', code: '<a href="javascript&colon;alert(1)">x</a>', errors: [jsUrl('href')]},
+  ],
+})
+
+jsx.run('no-javascript-url (jsx, character references)', rule, {
+  valid: [
+    {name: 'React sets the string without decoding it', code: '<a href="javascript&colon;alert(1)">x</a>'},
+  ],
+  invalid: [],
 })
