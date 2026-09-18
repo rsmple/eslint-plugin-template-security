@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {readdir} from 'node:fs/promises'
+import {readFile, readdir} from 'node:fs/promises'
 import {test} from 'node:test'
 import plugin from '../lib/index.js'
 
@@ -15,4 +15,10 @@ test('every rule links to its README section', () => {
   for (const [name, rule] of Object.entries(plugin.rules)) {
     assert.equal(rule.meta.docs.url, `https://github.com/rsmple/eslint-plugin-template-security#${ name }`)
   }
+})
+
+test('meta matches package.json', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+
+  assert.deepEqual(plugin.meta, {name: pkg.name, version: pkg.version})
 })
