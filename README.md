@@ -14,7 +14,7 @@ template syntax ESLint can parse:
 | Astro | `astro-eslint-parser` | `.astro` components |
 | Vue | `vue-eslint-parser` | SFC templates |
 | Svelte | `svelte-eslint-parser` | `.svelte` components |
-| HTML | `@html-eslint/parser` | `.html` files, and server templates through its `templateEngineSyntax` (Handlebars, Twig, Nunjucks, ERB) |
+| HTML | `@html-eslint/parser` | `.html` files, and [server templates](#server-templates): Jinja, Django, Nunjucks, Twig, Blade, ERB, EJS, Handlebars, PHP, JSP, Liquid |
 
 [htmx](https://htmx.org) and [Alpine.js](https://alpinejs.dev) attributes
 (`hx-get`, `x-html`) are checked in all of them.
@@ -54,6 +54,48 @@ In HTML files the rules check what is written in the markup: URLs, `target`,
 there, so `window-open-noopener` does not run on it. With a template engine
 configured, a `{{ … }}` part of a value is treated like a bound expression.
 
+### Server templates
+
+Server templates are HTML with a template engine's tags in it, so they use the
+same parser with the engine's delimiters. The plugin exports those for each
+engine, and a setting tells the rules which engine it is:
+
+```js
+import htmlParser from '@html-eslint/parser'
+import templateSecurity, {templateEngineSyntax} from 'eslint-plugin-template-security'
+
+export default [
+  templateSecurity.configs.recommended,
+  {
+    files: ['**/templates/**/*.html'],
+    languageOptions: {parser: htmlParser, parserOptions: {templateEngineSyntax: templateEngineSyntax.jinja}},
+    settings: {'template-security': {engine: 'jinja'}},
+  },
+]
+```
+
+| `engine` | For | Found from the file name |
+| --- | --- | --- |
+| `jinja` | Jinja2, Django, Nunjucks | `.j2`, `.jinja`, `.jinja2`, `.njk`, `.nunjucks` |
+| `twig` | Twig, Drupal, Symfony | `.twig` |
+| `blade` | Laravel Blade | `.blade.php` |
+| `erb` | Rails ERB | `.erb` |
+| `ejs` | EJS | `.ejs` |
+| `handlebars` | Handlebars, Mustache | `.hbs`, `.handlebars`, `.mustache` |
+| `php` | plain PHP templates, WordPress themes | `.php`, `.phtml` |
+| `jsp` | JSP | `.jsp`, `.jspx`, `.tag` |
+| `liquid` | Liquid (Shopify, Jekyll) | `.liquid` |
+
+For other file names, such as Django's `.html`, the setting names the engine.
+Without either, the rules only rely on syntax the engines share.
+
+Autoescaping in these engines escapes HTML text. It knows nothing about where
+the value lands, so a value escaped for text can still run as JavaScript in an
+`onclick`, a `<script>` or an Alpine `x-data`.
+[`no-unsafe-output-context`](#no-unsafe-output-context) reports those places,
+and [`no-unescaped-output`](#no-unescaped-output) reports output that skips
+escaping altogether.
+
 ## Usage
 
 ```js
@@ -76,8 +118,10 @@ export default [
 | [`no-javascript-url`](#no-javascript-url) | |
 | [`no-mixed-content`](#no-mixed-content) | 💡 suggestion |
 | [`no-sandbox-escape`](#no-sandbox-escape) | |
+| [`no-unescaped-output`](#no-unescaped-output) | |
 | [`no-unescaped-script-content`](#no-unescaped-script-content) | 💡 suggestion |
 | [`no-unsafe-html`](#no-unsafe-html) | |
+| [`no-unsafe-output-context`](#no-unsafe-output-context) | 🔧 fix |
 | [`require-sri`](#require-sri) | |
 | [`window-open-noopener`](#window-open-noopener) | 💡 suggestion |
 
@@ -240,6 +284,49 @@ absolute `https:` URL is always treated as another origin, even when it points
 to this site. A bound `sandbox` is not checked, and neither is a frame with a
 spread and no visible `src`.
 
+### `no-unescaped-output`
+
+Reports [server template](#server-templates) output that skips HTML escaping,
+in text, attribute values and `<style>`:
+
+| Engine | Unescaped |
+| --- | --- |
+| Jinja, Django, Nunjucks | `{{ x\|safe }}`, `{% autoescape false %}` / `off` |
+| Twig | `{{ x\|raw }}`, `{% autoescape false %}` |
+| Blade | `{!! x !!}` |
+| Handlebars, Mustache | `{{{ x }}}`, `{{& x }}` |
+| ERB | `<%== x %>`, `raw x`, `x.html_safe` |
+| EJS | `<%- x %>` |
+| PHP | every `<?= x ?>` and `<?php echo x ?>` |
+| JSP | every `${x}` and `<%= x %>` outside a tag library's attributes |
+
+```django
+{# ✗ #}
+<div>{{ comment.body|safe }}</div>
+
+{# ✓ #}
+<div>{{ comment.body }}</div>
+<div>{{ comment.body|bleach|safe }}</div>  {# with sanitizers: ['bleach'] #}
+```
+
+Output is not reported when it is a fixed string, or passes through an escaper,
+sanitizer or helper that builds its own markup: `htmlspecialchars()`, `e()`,
+`esc_html()`, `fn:escapeXml()`, `|escape`, `sanitize()`, `csrf_field()`,
+`->links()`, EJS `include()`. Neither is a layout's `{{{body}}}` /
+`<%- body %>`. The check is by name. Output inside `<script>`, event handlers
+and attribute names is left to
+[`no-unsafe-output-context`](#no-unsafe-output-context), because escaping is
+the wrong fix there.
+
+Liquid is not checked: it escapes nothing unless told to, so every output would
+be reported. For WordPress, the PHP_CodeSniffer rule
+`WordPress.Security.EscapeOutput` understands PHP and knows WordPress's own
+functions; this rule is a lighter check for templates.
+
+| Option | Default | |
+| --- | --- | --- |
+| `sanitizers` | `[]` | More call and filter names whose output is safe HTML. Added to the built-in list. |
+
 ### `no-unescaped-script-content`
 
 The HTML parser reads a `<script>` element's content as raw text up to the
@@ -376,6 +463,55 @@ The sanitizer check is by name: it trusts that a function called
 is a legitimate use — disable the rule on that line with a comment saying where
 the HTML comes from.
 
+### `no-unsafe-output-context`
+
+Reports [server template](#server-templates) output in places where the
+engine's HTML escaping does not make it safe:
+
+| Where | Why escaping does not help |
+| --- | --- |
+| `<script>` content | Not HTML: `var id = {{ id }}` needs no quote to inject code, and `\` can end a string |
+| Event handlers (`onclick`), htmx `hx-on:*` and `hx-vals="js:…"`, Alpine `x-*` / `@*` / `:*`, Knockout `data-bind` | The browser decodes `&#39;` back to `'` before running the code |
+| `srcdoc` | Decoded, then parsed as a document: escaped markup becomes markup again |
+| Unquoted values: `value={{ v }}` | Spaces are not escaped, so the output can add `onfocus=…` |
+| Attribute names: `<div {{ attrs }}>` | The output writes attributes, event handlers included |
+| The start of `href`, `src`, `action` (with `urls: true`) | `javascript:` has nothing to escape |
+
+```django
+{# ✗ #}
+<script>const user = "{{ user.name }}"</script>
+<button onclick="remove('{{ item.name }}')">Remove</button>
+
+{# ✓ #}
+<script>const user = {{ user.name|tojson }}</script>
+<button data-name="{{ item.name }}" onclick="remove(this.dataset.name)">Remove</button>
+```
+
+Output passes when it is a fixed string (`{{ 'a' if x else 'b' }}`), or goes
+through a JavaScript escaper: `|tojson` (Jinja), `|escapejs` (Django),
+`|e('js')` (Twig), `Js::from()` (Laravel), `j` / `escape_javascript` /
+`json_escape` (Rails), `json_encode(…, JSON_HEX_TAG)` / `esc_js()` (PHP),
+`encodeForJavaScript()` (Java), or a number filter such as `|int`. Attribute
+writers that escape each value, such as `|xmlattr`, Blade's `$attributes`,
+Drupal's `attributes`, `shopify_attributes` and Symfony's `stimulus_*()`, may
+write attribute names. `<script>` types that are not JavaScript or JSON, such as
+`text/template`, are skipped.
+
+The fix quotes an unquoted value.
+
+The URL check is off by default. In real templates most URLs come from the
+app's own routes and models (`{{ post.get_absolute_url }}`), which the rule
+cannot tell apart from a URL a user typed in. Turn it on to review those places,
+with the app's URL helpers listed as safe. `url_for()`, `route()`, `path()`,
+`asset()`, `*_path` / `*_url` (Rails), `esc_url()` and `ALL_CAPS` settings
+already count.
+
+| Option | Default | |
+| --- | --- | --- |
+| `escapers` | `[]` | More call and filter names whose output is safe inside JavaScript. Added to the built-in list. |
+| `urls` | `false` | Also report output at the start of a URL attribute. |
+| `urlHelpers` | `[]` | More URL builders, for `urls`. Added to the built-in list. |
+
 ### `require-sri`
 
 A script or stylesheet loaded from a CDN runs with this page's full access.
@@ -455,6 +591,12 @@ choose between the handle and the isolation.
   `[text](javascript:…)` is not JSX, and `eslint-mdx` does not expose it as
   nodes a rule can visit. `eslint-mdx` 3.8.1 also fails to parse a character
   reference (`&amp;`) inside a JSX attribute value.
+- Server templates are read by `@html-eslint/parser`, which fails on some
+  nesting: an output tag inside a comment (`{# {{ x }} #}`) or inside another
+  tag's delimiters. In ten open-source projects that was 5 files of about 1,500.
+  A JSP tag inside an attribute value (`href="<c:url …/>"`) is also misread.
+- Go's `html/template` escapes by context, so it needs neither rule. Razor
+  (`@x`) and Thymeleaf's attribute syntax (`th:utext`) are not supported.
 - Bindings into `<style>` are not checked. Generated CSS is common and rarely
   carries user input, so reporting every one of them would mostly be noise.
 - Values are resolved within the attribute only; a URL built in a variable

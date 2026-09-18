@@ -4,6 +4,7 @@ import * as astroParser from 'astro-eslint-parser'
 import * as svelteParser from 'svelte-eslint-parser'
 import * as vueParser from 'vue-eslint-parser'
 import {describe, it} from 'node:test'
+import {templateEngineSyntax} from '../lib/index.js'
 
 globalThis.describe = describe
 globalThis.it = it
@@ -33,3 +34,11 @@ export const handlebars = new RuleTester({
 })
 
 export const vueFile = (template, script = '') => `<template>${ template }</template>\n<script>${ script }</script>\n`
+
+// A test case for the `html` tester in one engine's syntax, named by the engine
+export const inEngine = (engine, test) => ({
+  ...test,
+  name: `${ engine }: ${ test.name }`,
+  languageOptions: {parserOptions: {templateEngineSyntax: templateEngineSyntax[engine]}},
+  settings: {'template-security': {engine}},
+})
