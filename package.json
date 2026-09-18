@@ -1,0 +1,60 @@
+{
+  "name": "eslint-plugin-template-security",
+  "version": "0.1.0",
+  "description": "ESLint security rules for template bindings, written once for JSX, Astro and Vue: unsafe HTML sinks, javascript: URLs, target=_blank without noopener, window.open without noopener.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": {
+      "import": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin",
+    "security",
+    "xss",
+    "templates",
+    "vue",
+    "react",
+    "jsx",
+    "astro",
+    "solid",
+    "v-html",
+    "dangerouslySetInnerHTML",
+    "noopener",
+    "target-blank",
+    "javascript-url"
+  ],
+  "license": "MIT",
+  "author": "rsmple",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rsmple/eslint-plugin-template-security.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rsmple/eslint-plugin-template-security/issues"
+  },
+  "homepage": "https://github.com/rsmple/eslint-plugin-template-security#readme",
+  "peerDependencies": {
+    "eslint": ">=9"
+  },
+  "devDependencies": {
+    "astro-eslint-parser": "3.1.0",
+    "eslint": "10.10.0",
+    "vue-eslint-parser": "10.4.1"
+  }
+}
