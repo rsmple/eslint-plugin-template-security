@@ -9,7 +9,8 @@ template syntax ESLint can parse:
 
 | Syntax | Parser | Covers |
 | --- | --- | --- |
-| JSX | default (`ecmaFeatures.jsx`) or `@typescript-eslint/parser` | React, Preact, Solid |
+| JSX | default (`ecmaFeatures.jsx`) or `@typescript-eslint/parser` | React, Preact, Solid, Qwik |
+| MDX | `eslint-mdx` | JSX in `.mdx` documents |
 | Astro | `astro-eslint-parser` | `.astro` components |
 | Vue | `vue-eslint-parser` | SFC templates |
 | Svelte | `svelte-eslint-parser` | `.svelte` components |
@@ -126,6 +127,7 @@ suggests, and a fallback or escaped version there is silently discarded.
 | Syntax | With children |
 | --- | --- |
 | React | throws at render |
+| Qwik | error logged in development, children dropped |
 | Vue `v-html` | compiler error, children dropped |
 | Solid `innerHTML` | children rendered, then overwritten |
 | Astro `set:html` | children dropped without a warning |
@@ -295,6 +297,7 @@ Reports HTML sinks bound to anything other than a constant or a sanitizer call:
 | Syntax | Sink |
 | --- | --- |
 | React, Preact | `dangerouslySetInnerHTML={{__html: x}}` |
+| Qwik | `dangerouslySetInnerHTML={x}` |
 | Solid, Vue | `innerHTML={x}`, `:innerHTML`, `v-bind:inner-html.prop` |
 | Vue | `v-html` |
 | Astro | `set:html` |
@@ -418,6 +421,10 @@ choose between the handle and the isolation.
 - Angular templates are not covered. Angular sanitizes `[innerHTML]` and
   `javascript:` URLs itself, and its bypasses (`bypassSecurityTrustHtml()`)
   are TypeScript calls rather than template syntax.
+- In MDX only the JSX is checked. Markdown syntax such as
+  `[text](javascript:…)` is not JSX, and `eslint-mdx` does not expose it as
+  nodes a rule can visit. `eslint-mdx` 3.8.1 also fails to parse a character
+  reference (`&amp;`) inside a JSX attribute value.
 - Bindings into `<style>` are not checked. Generated CSS is common and rarely
   carries user input, so reporting every one of them would mostly be noise.
 - Values are resolved within the attribute only; a URL built in a variable
