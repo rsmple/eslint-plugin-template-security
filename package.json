@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-template-security",
   "version": "0.1.0",
-  "description": "ESLint security rules for template bindings, written once for JSX, Astro, Vue, Svelte and HTML: unsafe HTML sinks, script breakout, javascript: URLs, mixed content, SRI, iframe sandbox escapes and missing noopener.",
+  "description": "ESLint security rules for template bindings, written once for JSX, Astro, Vue, Svelte and HTML, with htmx and Alpine: unsafe HTML sinks, script breakout, javascript: URLs, mixed content, SRI, iframe sandbox escapes and missing noopener.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -49,6 +49,8 @@
     "@html",
     "html",
     "handlebars",
+    "htmx",
+    "alpinejs",
     "qwik",
     "mdx"
   ],

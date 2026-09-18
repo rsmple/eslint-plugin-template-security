@@ -65,3 +65,12 @@ html.run('no-html-with-children (html)', rule, {
   ],
   invalid: [],
 })
+
+html.run('no-html-with-children (alpine)', rule, {
+  valid: [
+    {name: 'empty x-html element', code: '<div x-html="post.body"></div>'},
+  ],
+  invalid: [
+    {name: 'placeholder under x-html', code: '<div x-html="post.body">Loading…</div>', errors: [withChildren('x-html')]},
+  ],
+})

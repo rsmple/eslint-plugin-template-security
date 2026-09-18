@@ -1,13 +1,16 @@
 import rule from '../lib/rules/no-mixed-content.js'
 import {astro, handlebars, html, jsx, svelte, vue, vueFile} from './testers.js'
 
-const insecure = (element, attribute) => ({messageId: 'insecure', data: {element, attribute}})
+const insecure = (element, attribute, scheme = 'http') => ({messageId: 'insecure', data: {element, attribute, scheme, secure: `${ scheme }s`}})
 
-// Every fixable case has one `http:`, and the suggestion rewrites it
-const invalid = (name, code, element, attribute) => ({
+// Every fixable case has one `http:` (or `ws:`), and the suggestion rewrites it
+const invalid = (name, code, element, attribute, scheme = 'http') => ({
   name,
   code,
-  errors: [{...insecure(element, attribute), suggestions: [{messageId: 'useHttps', output: code.replace(/http:/i, 'https:')}]}],
+  errors: [{
+    ...insecure(element, attribute, scheme),
+    suggestions: [{messageId: 'useSecure', data: {secure: `${ scheme }s`}, output: code.replace(new RegExp(`${ scheme }:`, 'i'), `${ scheme }s:`)}],
+  }],
 })
 
 jsx.run('no-mixed-content (jsx)', rule, {
@@ -102,5 +105,29 @@ handlebars.run('no-mixed-content (handlebars)', rule, {
   ],
   invalid: [
     invalid('http before a template', '<script src="http://{{ host }}/a.js"></script>', 'script', 'src'),
+  ],
+})
+
+html.run('no-mixed-content (htmx)', rule, {
+  valid: [
+    {name: 'relative hx-get', code: '<div hx-get="/items"></div>'},
+    {name: 'https hx-post', code: '<form hx-post="https://api.x.com/a"></form>'},
+    {name: 'wss connection', code: '<div hx-ext="ws" ws-connect="wss://x.com/chat"></div>'},
+    {name: 'ws to localhost', code: '<div ws-connect="ws://localhost:8080/chat"></div>'},
+    {name: 'unrelated attribute', code: '<div hx-target="http://x.com"></div>'},
+  ],
+  invalid: [
+    invalid('hx-get on any element', '<button hx-get="http://api.x.com/items">Load</button>', 'button', 'hx-get'),
+    invalid('hx-delete', '<tr hx-delete="http://x.com/rows/1"></tr>', 'tr', 'hx-delete'),
+    invalid('data- prefix', '<div data-hx-post="http://x.com/a"></div>', 'div', 'data-hx-post'),
+    invalid('Server-Sent Events', '<div hx-ext="sse" sse-connect="http://x.com/events"></div>', 'div', 'sse-connect'),
+    invalid('WebSocket', '<div hx-ext="ws" ws-connect="ws://x.com/chat"></div>', 'div', 'ws-connect', 'ws'),
+  ],
+})
+
+jsx.run('no-mixed-content (htmx in jsx)', rule, {
+  valid: [],
+  invalid: [
+    invalid('template head', '<div hx-get={`http://api.x.com/items/${ id }`} />', 'div', 'hx-get'),
   ],
 })

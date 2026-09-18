@@ -16,6 +16,9 @@ template syntax ESLint can parse:
 | Svelte | `svelte-eslint-parser` | `.svelte` components |
 | HTML | `@html-eslint/parser` | `.html` files, and server templates through its `templateEngineSyntax` (Handlebars, Twig, Nunjucks, ERB) |
 
+[htmx](https://htmx.org) and [Alpine.js](https://alpinejs.dev) attributes
+(`hx-get`, `x-html`) are checked in all of them.
+
 Security plugins mostly look at JavaScript — `element.innerHTML = x`,
 `postMessage(x, '*')`. The same sinks written in a template (`v-html`,
 `set:html`, `{@html}`, `:href`, `target="_blank"`) are a different AST in every
@@ -132,6 +135,7 @@ suggests, and a fallback or escaped version there is silently discarded.
 | Solid `innerHTML` | children rendered, then overwritten |
 | Astro `set:html` | children dropped without a warning |
 | Svelte `bind:innerHTML` | children rendered, then overwritten unless the bound value is empty |
+| Alpine `x-html` | children rendered, then overwritten when Alpine starts |
 
 ```astro
 <!-- ✗ -->
@@ -173,7 +177,7 @@ React sets them on the DOM unchanged.
 
 ### `no-mixed-content`
 
-Reports `http:` URLs the page loads or submits to:
+Reports `http:` and `ws:` URLs the page loads or submits to:
 
 | Element | Attribute |
 | --- | --- |
@@ -183,6 +187,7 @@ Reports `http:` URLs the page loads or submits to:
 | `<link>` with `rel` `stylesheet`, `preload`, `modulepreload`, `prefetch` or `manifest` | `href` |
 | `<form>` | `action` |
 | `<button>`, `<input>` | `formaction` |
+| any element | htmx `hx-get`, `hx-post`, `hx-put`, `hx-patch`, `hx-delete` (and `data-hx-*`), `sse-connect`, `ws-connect` |
 
 On an HTTPS page the browser blocks these requests, or warns before a form is
 submitted. Anywhere, anyone on the network path can read the request and change
@@ -205,7 +210,7 @@ video, which browsers upgrade to `https:` themselves, or `<a href>`, which is a
 navigation rather than a load. A bound URL is reported when it is known to start
 with `http:`: a template head, a concatenation, or a conditional branch.
 
-The suggestion switches the URL to `https:`. It is not an autofix because the
+The suggestion switches the URL to `https:` (`wss:` for `ws:`). It is not an autofix because the
 host may not serve HTTPS.
 
 ### `no-sandbox-escape`
@@ -302,11 +307,17 @@ Reports HTML sinks bound to anything other than a constant or a sanitizer call:
 | Vue | `v-html` |
 | Astro | `set:html` |
 | Svelte | `{@html x}`, `bind:innerHTML` |
+| Alpine | `x-html="x"` |
 | All | `<iframe srcdoc>` (`srcDoc` in React) |
+| htmx | `hx-get` and the other request attributes, with a URL on another origin |
 
 In Svelte, `innerHTML={x}` sets an inert `innerhtml` attribute rather than the
 property, so only `bind:innerHTML` counts. A template string is checked by
 its interpolations: `` {@html `<p>${DOMPurify.sanitize(x)}</p>`} `` passes.
+
+Alpine's `x-html` holds JavaScript that Alpine evaluates, not the HTML itself.
+It passes when that code is a single string literal or a single sanitizer call
+(`x-html="DOMPurify.sanitize(post.body)"`), and anything else is reported.
 
 ```vue
 <!-- ✗ -->
@@ -333,9 +344,28 @@ opaque origin. The exception is a `sandbox` that lists both `allow-scripts` and
 <iframe sandbox="allow-scripts" :srcdoc="preview" />
 ```
 
+htmx inserts the HTML a request returns into the page, so an `hx-get` (or
+`hx-post`, `hx-put`, `hx-patch`, `hx-delete`) to another origin lets that host
+run scripts in your page. htmx's own
+[security essay](https://htmx.org/essays/web-security-basics-with-htmx/) gives
+the same rule: only call routes you control. A URL is reported when it is known to have a host,
+static or as a template head, and that host is not in `trustedHosts`. A relative
+or fully bound URL is not, and neither is an element with `hx-swap="none"`,
+which discards the response. htmx 2 blocks these requests by default
+(`htmx.config.selfRequestsOnly`); htmx 1 and apps that turn that off send them.
+
+```html
+<!-- ✗ -->
+<div hx-get="https://widgets.example.net/feed"></div>
+
+<!-- ✓ -->
+<div hx-get="/feed"></div>
+```
+
 | Option | Default | |
 | --- | --- | --- |
 | `sanitizers` | `['DOMPurify.sanitize', 'sanitizeHtml']` | Callee names that count as sanitizing. Replaces the default list. |
+| `trustedHosts` | `[]` | Hosts whose HTML htmx may insert, such as your own API's host. `*.example.com` matches subdomains, not `example.com` itself. |
 
 `<script>` and `<style>` are skipped: their content is raw text, not HTML, so
 an HTML sanitizer is the wrong tool there. `<script>` is covered by
