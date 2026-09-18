@@ -1,5 +1,5 @@
 import rule from '../lib/rules/link-noopener.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const missingRel = (rel = 'noopener') => ({messageId: 'missingRel', data: {rel}})
 const incompleteRel = (missing = 'noopener') => ({messageId: 'incompleteRel', data: {missing}})
@@ -134,6 +134,40 @@ astro.run('link-noopener (astro)', rule, {
       name: 'rel "me" from a footer social link',
       code: '<a href="https://github.com/x" target="_blank" rel="me">x</a>',
       output: '<a href="https://github.com/x" target="_blank" rel="me noopener">x</a>',
+      errors: [incompleteRel()],
+    },
+  ],
+})
+
+svelte.run('link-noopener (svelte)', rule, {
+  valid: [
+    {name: 'noopener', code: '<a href="https://x.com" target="_blank" rel="noopener">x</a>'},
+    {name: 'spread may carry rel', code: '<a href={url} target="_blank" {...rest}>x</a>'},
+    {name: 'same-origin', code: '<a href="/docs" target="_blank">x</a>'},
+  ],
+  invalid: [
+    {
+      name: 'missing rel',
+      code: '<a href="https://x.com" target="_blank">x</a>',
+      output: '<a href="https://x.com" target="_blank" rel="noopener">x</a>',
+      errors: [missingRel()],
+    },
+    {
+      name: 'interpolated href',
+      code: '<a href="https://{host}/docs" target="docs">x</a>',
+      output: '<a href="https://{host}/docs" target="docs" rel="noopener">x</a>',
+      errors: [missingRel()],
+    },
+    {
+      name: 'svelte:element with a static tag',
+      code: '<svelte:element this={\'a\'} href={url} target="_blank">x</svelte:element>',
+      output: '<svelte:element this={\'a\'} href={url} target="_blank" rel="noopener">x</svelte:element>',
+      errors: [missingRel()],
+    },
+    {
+      name: 'incomplete rel',
+      code: '<a href="https://x.com" target="_blank" rel="me">x</a>',
+      output: '<a href="https://x.com" target="_blank" rel="me noopener">x</a>',
       errors: [incompleteRel()],
     },
   ],

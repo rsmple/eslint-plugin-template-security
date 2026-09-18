@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-unsafe-html.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const unsafe = sink => ({messageId: 'unsafeHtml', data: {sink, sanitizers: '`DOMPurify.sanitize()`, `sanitizeHtml()`'}})
 const srcdoc = {messageId: 'unsafeSrcdoc', data: {sanitizers: '`DOMPurify.sanitize()`, `sanitizeHtml()`'}}
@@ -76,5 +76,25 @@ astro.run('no-unsafe-html (astro)', rule, {
     {name: 'set:html', code: '---\nconst {html} = Astro.props\n---\n<Fragment set:html={html} />', errors: [unsafe('set:html')]},
     {name: 'set:html shorthand-free expression', code: '<article set:html={post.content} />', errors: [unsafe('set:html')]},
     {name: 'srcdoc', code: '<iframe srcdoc={email.body} />', errors: [srcdoc]},
+  ],
+})
+
+svelte.run('no-unsafe-html (svelte)', rule, {
+  valid: [
+    {name: 'sanitized {@html}', code: '{@html DOMPurify.sanitize(html)}'},
+    {name: 'constant {@html}', code: '{@html \'<br>\'}'},
+    {name: 'sanitized interpolation', code: '{@html `<p>${ sanitizeHtml(html) }</p>`}'},
+    {name: 'JSON-LD is left to no-unescaped-script-content', code: '<svelte:head>{@html `<script type="application/ld+json">${ JSON.stringify(data) }</script>`}</svelte:head>'},
+    {name: 'text', code: '<p>{html}</p>'},
+    {name: 'sandboxed srcdoc', code: '<iframe sandbox {srcdoc}></iframe>'},
+    {name: 'innerHTML is an inert attribute in Svelte', code: '<div innerHTML={html}></div>'},
+  ],
+  invalid: [
+    {name: '{@html}', code: '<article>{@html post.body}</article>', errors: [unsafe('{@html}')]},
+    {name: '{@html} at the top level', code: '{@html html}', errors: [unsafe('{@html}')]},
+    {name: 'interpolated markup', code: '{@html `<p>${ html }</p>`}', errors: [unsafe('{@html}')]},
+    {name: 'bind:innerHTML', code: '<div contenteditable bind:innerHTML={html}></div>', errors: [unsafe('innerHTML')]},
+    {name: 'shorthand srcdoc', code: '<iframe {srcdoc}></iframe>', errors: [srcdoc]},
+    {name: 'opening tag attribute is HTML', code: '{@html `<script nonce="${ nonce }">init()</script>`}', errors: [unsafe('{@html}')]},
   ],
 })

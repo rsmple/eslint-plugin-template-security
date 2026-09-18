@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-html-with-children.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const withChildren = sink => ({messageId: 'htmlWithChildren', data: {sink}})
 
@@ -43,5 +43,17 @@ astro.run('no-html-with-children (astro)', rule, {
   invalid: [
     {name: 'set:html with children', code: '<article set:html={html}>\n  <p>Fallback</p>\n</article>', errors: [withChildren('set:html')]},
     {name: 'set:html with an expression', code: '<Fragment set:html={html}>{fallback}</Fragment>', errors: [withChildren('set:html')]},
+  ],
+})
+
+svelte.run('no-html-with-children (svelte)', rule, {
+  valid: [
+    {name: '{@html} is a child, not a binding', code: '<div><h2>Title</h2>{@html body}</div>'},
+    {name: 'innerHTML is an inert attribute in Svelte', code: '<div innerHTML={html}>child</div>'},
+    {name: 'whitespace and comments', code: '<div contenteditable bind:innerHTML={html}>\n  <!-- editable -->\n</div>'},
+  ],
+  invalid: [
+    {name: 'bind:innerHTML with children', code: '<div contenteditable bind:innerHTML={html}>Type here</div>', errors: [withChildren('innerHTML')]},
+    {name: 'bind:innerHTML with a block', code: '<div contenteditable bind:innerHTML={html}>{#if loading}…{/if}</div>', errors: [withChildren('innerHTML')]},
   ],
 })

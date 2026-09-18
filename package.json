@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-template-security",
   "version": "0.1.0",
-  "description": "ESLint security rules for template bindings, written once for JSX, Astro and Vue: unsafe HTML sinks, script breakout, javascript: URLs, mixed content, SRI, iframe sandbox escapes and missing noopener.",
+  "description": "ESLint security rules for template bindings, written once for JSX, Astro, Vue and Svelte: unsafe HTML sinks, script breakout, javascript: URLs, mixed content, SRI, iframe sandbox escapes and missing noopener.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -43,7 +43,10 @@
     "mixed-content",
     "iframe",
     "sandbox",
-    "json-ld"
+    "json-ld",
+    "svelte",
+    "sveltekit",
+    "@html"
   ],
   "license": "MIT",
   "author": "rsmple",
@@ -61,6 +64,8 @@
   "devDependencies": {
     "astro-eslint-parser": "3.1.0",
     "eslint": "10.10.0",
+    "svelte": "5.57.0",
+    "svelte-eslint-parser": "1.8.1",
     "vue-eslint-parser": "10.4.1"
   }
 }

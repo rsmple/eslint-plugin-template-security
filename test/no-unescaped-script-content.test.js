@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-unescaped-script-content.js'
-import {astro, jsx} from './testers.js'
+import {astro, jsx, svelte} from './testers.js'
 
 const ESCAPE = '.replace(/</g, \'\\\\u003c\')'
 
@@ -78,5 +78,43 @@ jsx.run('no-unescaped-script-content (jsx)', rule, {
       errors: [unescaped('dangerouslySetInnerHTML')],
     },
     {name: 'Solid innerHTML', code: '<script innerHTML={JSON.stringify(data)} />', errors: [unescaped('innerHTML', `<script innerHTML={JSON.stringify(data)${ ESCAPE }} />`)]},
+  ],
+})
+
+const JSON_LD = '<script type="application/ld+json">'
+
+svelte.run('no-unescaped-script-content (svelte)', rule, {
+  valid: [
+    {name: 'escaped JSON-LD', code: `<svelte:head>{@html \`${ JSON_LD }\${ JSON.stringify(data)${ ESCAPE } }</script>\`}</svelte:head>`},
+    {name: 'serialize', code: `<svelte:head>{@html \`${ JSON_LD }\${ serialize(data) }</script>\`}</svelte:head>`},
+    {name: 'interpolation after the script closes', code: '{@html `<script>init()</script><p>${ text }</p>`}'},
+    {name: 'interpolation in the opening tag', code: '{@html `<script nonce="${ nonce }">init()</script>`}'},
+    {name: 'plain html', code: '{@html html}'},
+  ],
+  invalid: [
+    {
+      name: 'JSON-LD through {@html}',
+      code: `<svelte:head>{@html \`${ JSON_LD }\${ JSON.stringify(data) }</script>\`}</svelte:head>`,
+      errors: [unescaped('{@html}', `<svelte:head>{@html \`${ JSON_LD }\${ JSON.stringify(data)${ ESCAPE } }</script>\`}</svelte:head>`)],
+    },
+    {
+      name: 'concatenation',
+      code: `{@html '${ JSON_LD }' + JSON.stringify(data) + '</' + 'script>'}`,
+      errors: [unescaped('{@html}', `{@html '${ JSON_LD }' + JSON.stringify(data)${ ESCAPE } + '</' + 'script>'}`)],
+    },
+    {name: 'variable', code: '{@html `<script>window.state = ${ state }</script>`}', errors: [unescaped('{@html}')]},
+  ],
+})
+
+jsx.run('no-unescaped-script-content (jsx, built script)', rule, {
+  valid: [
+    {name: 'escaped', code: `<div dangerouslySetInnerHTML={{__html: \`<script>\${ JSON.stringify(x)${ ESCAPE } }</script>\`}} />`},
+  ],
+  invalid: [
+    {
+      name: '__html builds a script',
+      code: '<div dangerouslySetInnerHTML={{__html: `<script>${ JSON.stringify(x) }</script>`}} />',
+      errors: [unescaped('dangerouslySetInnerHTML', `<div dangerouslySetInnerHTML={{__html: \`<script>\${ JSON.stringify(x)${ ESCAPE } }</script>\`}} />`)],
+    },
   ],
 })

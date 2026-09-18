@@ -1,5 +1,5 @@
 import rule from '../lib/rules/require-sri.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const missingIntegrity = element => ({messageId: 'missingIntegrity', data: {element}})
 const missingCrossorigin = element => ({messageId: 'missingCrossorigin', data: {element}})
@@ -80,5 +80,16 @@ astro.run('require-sri (astro)', rule, {
   ],
   invalid: [
     {name: 'cdn script', code: '<script is:inline src="https://cdn.example.com/a.js"></script>', errors: [missingIntegrity('script')]},
+  ],
+})
+
+svelte.run('require-sri (svelte)', rule, {
+  valid: [
+    {name: 'both attributes', code: `<svelte:head><link rel="stylesheet" href="https://cdn.example.com/a.css" integrity="${ HASH }" crossorigin="anonymous" /></svelte:head>`},
+    {name: 'same-origin', code: '<svelte:head><script src="/a.js"></script></svelte:head>'},
+  ],
+  invalid: [
+    {name: 'cdn stylesheet', code: '<svelte:head><link rel="stylesheet" href="https://cdn.example.com/a.css" /></svelte:head>', errors: [missingIntegrity('link')]},
+    {name: 'interpolated cdn script', code: '<svelte:head><script src="https://cdn.example.com/x@{version}/x.js"></script></svelte:head>', errors: [missingIntegrity('script')]},
   ],
 })

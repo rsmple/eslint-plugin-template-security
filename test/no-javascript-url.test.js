@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-javascript-url.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const jsUrl = attribute => ({messageId: 'javascriptUrl', data: {attribute}})
 
@@ -46,5 +46,17 @@ astro.run('no-javascript-url (astro)', rule, {
   invalid: [
     {name: 'static', code: '<a href="javascript:void(0)">x</a>', errors: [jsUrl('href')]},
     {name: 'template literal attribute', code: '<a href=`javascript:${ code }`>x</a>', errors: [jsUrl('href')]},
+  ],
+})
+
+svelte.run('no-javascript-url (svelte)', rule, {
+  valid: [
+    {name: 'relative', code: '<a href="/x">x</a>'},
+    {name: 'bound unknown', code: '<a {href}>x</a>'},
+  ],
+  invalid: [
+    {name: 'static', code: '<a href="javascript:void(0)">x</a>', errors: [jsUrl('href')]},
+    {name: 'interpolated head', code: '<a href="javascript:{code}">x</a>', errors: [jsUrl('href')]},
+    {name: 'bound literal', code: '<iframe src={\'javascript:alert(1)\'} />', errors: [jsUrl('src')]},
   ],
 })

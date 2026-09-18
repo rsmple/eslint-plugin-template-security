@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-sandbox-escape.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const escape = origin => ({messageId: 'sandboxEscape', data: {origin}})
 const SAME = 'loading this page\'s origin'
@@ -58,5 +58,16 @@ astro.run('no-sandbox-escape (astro)', rule, {
   ],
   invalid: [
     {name: 'srcdoc', code: `<iframe srcdoc={html} sandbox="${ BOTH }" />`, errors: [escape(SRCDOC)]},
+  ],
+})
+
+svelte.run('no-sandbox-escape (svelte)', rule, {
+  valid: [
+    {name: 'scripts only', code: '<iframe {srcdoc} sandbox="allow-scripts"></iframe>'},
+    {name: 'interpolated sandbox is not read', code: '<iframe src="/a" sandbox="allow-scripts {extra}"></iframe>'},
+  ],
+  invalid: [
+    {name: 'shorthand srcdoc', code: `<iframe {srcdoc} sandbox="${ BOTH }"></iframe>`, errors: [escape(SRCDOC)]},
+    {name: 'relative src', code: `<iframe src="/widget" sandbox="${ BOTH }"></iframe>`, errors: [escape(SAME)]},
   ],
 })

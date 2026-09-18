@@ -1,5 +1,5 @@
 import rule from '../lib/rules/no-mixed-content.js'
-import {astro, jsx, vue, vueFile} from './testers.js'
+import {astro, jsx, svelte, vue, vueFile} from './testers.js'
 
 const insecure = (element, attribute) => ({messageId: 'insecure', data: {element, attribute}})
 
@@ -71,5 +71,15 @@ astro.run('no-mixed-content (astro)', rule, {
   invalid: [
     invalid('script', '<script is:inline src="http://x.com/a.js"></script>', 'script', 'src'),
     invalid('stylesheet', '<link rel="stylesheet" href="http://x.com/a.css" />', 'link', 'href'),
+  ],
+})
+
+svelte.run('no-mixed-content (svelte)', rule, {
+  valid: [
+    {name: 'https in svelte:head', code: '<svelte:head><script src="https://x.com/a.js"></script></svelte:head>'},
+  ],
+  invalid: [
+    invalid('script in svelte:head', '<svelte:head><script src="http://x.com/a.js"></script></svelte:head>', 'script', 'src'),
+    invalid('interpolated form action', '<form action="http://{host}/submit"></form>', 'form', 'action'),
   ],
 })

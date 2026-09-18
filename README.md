@@ -12,13 +12,14 @@ template syntax ESLint can parse:
 | JSX | default (`ecmaFeatures.jsx`) or `@typescript-eslint/parser` | React, Preact, Solid |
 | Astro | `astro-eslint-parser` | `.astro` components |
 | Vue | `vue-eslint-parser` | SFC templates |
+| Svelte | `svelte-eslint-parser` | `.svelte` components |
 
 Security plugins mostly look at JavaScript — `element.innerHTML = x`,
 `postMessage(x, '*')`. The same sinks written in a template (`v-html`,
-`set:html`, `:href`, `target="_blank"`) are a different AST in every framework,
-and each framework plugin covers a different subset of them, if any. This plugin
-reads them all through one adapter, so a rule behaves the same in a `.vue`,
-`.astro` and `.tsx` file.
+`set:html`, `{@html}`, `:href`, `target="_blank"`) are a different AST in every
+framework, and each framework plugin covers a different subset of them, if any.
+This plugin reads them all through one adapter, so a rule behaves the same in a
+`.vue`, `.svelte`, `.astro` and `.tsx` file.
 
 It pairs with JavaScript-level plugins such as
 [`eslint-plugin-no-unsanitized`](https://github.com/mozilla/eslint-plugin-no-unsanitized)
@@ -112,6 +113,7 @@ suggests, and a fallback or escaped version there is silently discarded.
 | Vue `v-html` | compiler error, children dropped |
 | Solid `innerHTML` | children rendered, then overwritten |
 | Astro `set:html` | children dropped without a warning |
+| Svelte `bind:innerHTML` | children rendered, then overwritten unless the bound value is empty |
 
 ```astro
 <!-- ✗ -->
@@ -239,6 +241,27 @@ the escaped value parses to the same data. The suggestion adds this escape when
 the value is a `JSON.stringify()` call. It is not an autofix because
 `JSON.stringify(undefined)` returns `undefined`, and `.replace` would then throw.
 
+It also checks HTML that builds its own `<script>`. Svelte does not allow
+`{…}` inside a `<script>` in markup, so JSON-LD there is usually written as
+`{@html}` around a template string. The interpolations inside the `<script>`
+element have to be escaped the same way:
+
+```svelte
+<!-- ✗ -->
+<svelte:head>
+  {@html `<script type="application/ld+json">${JSON.stringify(schema)}</script>`}
+</svelte:head>
+
+<!-- ✓ -->
+<svelte:head>
+  {@html `<script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>`}
+</svelte:head>
+```
+
+The same applies to `__html`, `set:html` or `v-html` built from a template
+string or `+` concatenation. `no-unsafe-html` then checks only the
+interpolations outside the `<script>`.
+
 A replace that only matches `</script` does not count: `<!--` inside a script
 also changes how the parser reads the rest of it.
 
@@ -256,7 +279,12 @@ Reports HTML sinks bound to anything other than a constant or a sanitizer call:
 | Solid, Vue | `innerHTML={x}`, `:innerHTML`, `v-bind:inner-html.prop` |
 | Vue | `v-html` |
 | Astro | `set:html` |
+| Svelte | `{@html x}`, `bind:innerHTML` |
 | All | `<iframe srcdoc>` (`srcDoc` in React) |
+
+In Svelte, `innerHTML={x}` sets an inert `innerhtml` attribute rather than the
+property, so only `bind:innerHTML` counts. A template string is checked by
+its interpolations: `` {@html `<p>${DOMPurify.sanitize(x)}</p>`} `` passes.
 
 ```vue
 <!-- ✗ -->
@@ -333,9 +361,13 @@ tags and payment SDKs (Stripe asks you not to). List those hosts to accept them:
 
 ```js
 'template-security/require-sri': ['error', {
-  trustedHosts: ['www.googletagmanager.com', '*.stripe.com'],
+  trustedHosts: ['www.googletagmanager.com', '*.stripe.com', 'fonts.googleapis.com'],
 }]
 ```
+
+Google Fonts' CSS is generated for each browser, so it has no fixed hash. The
+font files it points to come from `fonts.gstatic.com` through the stylesheet,
+not from the template, so this rule never sees them.
 
 ### `window-open-noopener`
 
@@ -354,7 +386,9 @@ window.open(url, '_blank', 'width=600,noopener')
 ```
 
 Calls through a local `open` or `window` binding are ignored, as are
-`_self` / `_parent` / `_top` targets and a bound features string.
+`_self` / `_parent` / `_top` targets and a bound features string. So are URLs
+on this page's origin: a relative path, or one built from `location.origin`
+(`` `${location.origin}/login` ``). The opened page is then this site's own.
 
 With `noopener`, `window.open()` returns `null`. The suggestion is therefore
 only offered when the return value is unused; code that keeps the handle has to
@@ -362,8 +396,8 @@ choose between the handle and the isolation.
 
 ## Limitations
 
-- Svelte, Angular templates and plain `.html` files are not covered yet — the
-  adapter layer is built for them to be added.
+- Angular templates and plain `.html` files are not covered yet — the adapter
+  layer is built for them to be added.
 - Bindings into `<style>` are not checked. Generated CSS is common and rarely
   carries user input, so reporting every one of them would mostly be noise.
 - Values are resolved within the attribute only; a URL built in a variable

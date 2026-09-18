@@ -1,5 +1,6 @@
 import {RuleTester} from 'eslint'
 import * as astroParser from 'astro-eslint-parser'
+import * as svelteParser from 'svelte-eslint-parser'
 import * as vueParser from 'vue-eslint-parser'
 import {describe, it} from 'node:test'
 
@@ -16,6 +17,10 @@ export const vue = new RuleTester({
 
 export const astro = new RuleTester({
   languageOptions: {parser: astroParser},
+})
+
+export const svelte = new RuleTester({
+  languageOptions: {parser: svelteParser},
 })
 
 export const vueFile = (template, script = '') => `<template>${ template }</template>\n<script>${ script }</script>\n`
