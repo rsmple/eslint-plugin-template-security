@@ -51,6 +51,7 @@ export default [
 | Rule | Fixable |
 | --- | --- |
 | [`link-noopener`](#link-noopener) | 🔧 fix |
+| [`no-html-with-children`](#no-html-with-children) | |
 | [`no-javascript-url`](#no-javascript-url) | |
 | [`no-mixed-content`](#no-mixed-content) | 💡 suggestion |
 | [`no-sandbox-escape`](#no-sandbox-escape) | |
@@ -98,6 +99,33 @@ the rule cannot see into either.
   noreferrer: true,
 }]
 ```
+
+### `no-html-with-children`
+
+An HTML binding replaces the element's whole content, so children written in
+the template never render. The page does not show the markup the template
+suggests, and a fallback or escaped version there is silently discarded.
+
+| Syntax | With children |
+| --- | --- |
+| React | throws at render |
+| Vue `v-html` | compiler error, children dropped |
+| Solid `innerHTML` | children rendered, then overwritten |
+| Astro `set:html` | children dropped without a warning |
+
+```astro
+<!-- ✗ -->
+<article set:html={post.html}>
+  <p>Loading…</p>
+</article>
+
+<!-- ✓ -->
+<article set:html={post.html} />
+```
+
+Whitespace and comments do not count as children. A JSX `children` prop
+does. For `v-html` this overlaps with `vue/no-child-content` from
+`eslint-plugin-vue`.
 
 ### `no-javascript-url`
 
